@@ -75,7 +75,7 @@ type User struct {
 	// 生日
 	Birthday sql.NullTime
 	// 性别
-	Gender UsersGender
+	Gender NullUsersGender
 	// 角色
-	Role string
+	Role sql.NullString
 }

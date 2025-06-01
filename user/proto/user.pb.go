@@ -164,13 +164,13 @@ func (x *IdRequest) GetId() int32 {
 
 type UserInfoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	Mobile        string                 `protobuf:"bytes,3,opt,name=mobile,proto3" json:"mobile,omitempty"`
 	Nickname      string                 `protobuf:"bytes,4,opt,name=nickname,proto3" json:"nickname,omitempty"`
 	Birthday      uint64                 `protobuf:"varint,5,opt,name=birthday,proto3" json:"birthday,omitempty"`
 	Gender        string                 `protobuf:"bytes,6,opt,name=gender,proto3" json:"gender,omitempty"`
-	Role          uint32                 `protobuf:"varint,7,opt,name=role,proto3" json:"role,omitempty"`
+	Role          string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -205,7 +205,7 @@ func (*UserInfoResponse) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UserInfoResponse) GetId() int32 {
+func (x *UserInfoResponse) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -247,11 +247,11 @@ func (x *UserInfoResponse) GetGender() string {
 	return ""
 }
 
-func (x *UserInfoResponse) GetRole() uint32 {
+func (x *UserInfoResponse) GetRole() string {
 	if x != nil {
 		return x.Role
 	}
-	return 0
+	return ""
 }
 
 type CreateUserInfo struct {
@@ -316,13 +316,13 @@ func (x *CreateUserInfo) GetMobile() string {
 
 type UpdateUserInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Nickname      string                 `protobuf:"bytes,2,opt,name=nickname,proto3" json:"nickname,omitempty"`
 	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
 	Mobile        string                 `protobuf:"bytes,4,opt,name=mobile,proto3" json:"mobile,omitempty"`
 	Birthday      uint64                 `protobuf:"varint,5,opt,name=birthday,proto3" json:"birthday,omitempty"`
 	Gender        string                 `protobuf:"bytes,6,opt,name=gender,proto3" json:"gender,omitempty"`
-	Role          uint32                 `protobuf:"varint,7,opt,name=role,proto3" json:"role,omitempty"`
+	Role          string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -357,7 +357,7 @@ func (*UpdateUserInfo) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *UpdateUserInfo) GetId() int32 {
+func (x *UpdateUserInfo) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
@@ -399,11 +399,11 @@ func (x *UpdateUserInfo) GetGender() string {
 	return ""
 }
 
-func (x *UpdateUserInfo) GetRole() uint32 {
+func (x *UpdateUserInfo) GetRole() string {
 	if x != nil {
 		return x.Role
 	}
-	return 0
+	return ""
 }
 
 type CheckPasswordInfo struct {
@@ -568,25 +568,25 @@ const file_user_proto_rawDesc = "" +
 	"\tIdRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\"\xba\x01\n" +
 	"\x10UserInfoResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x16\n" +
 	"\x06mobile\x18\x03 \x01(\tR\x06mobile\x12\x1a\n" +
 	"\bnickname\x18\x04 \x01(\tR\bnickname\x12\x1a\n" +
 	"\bbirthday\x18\x05 \x01(\x04R\bbirthday\x12\x16\n" +
 	"\x06gender\x18\x06 \x01(\tR\x06gender\x12\x12\n" +
-	"\x04role\x18\a \x01(\rR\x04role\"`\n" +
+	"\x04role\x18\a \x01(\tR\x04role\"`\n" +
 	"\x0eCreateUserInfo\x12\x1a\n" +
 	"\bnickname\x18\x01 \x01(\tR\bnickname\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x16\n" +
 	"\x06mobile\x18\x03 \x01(\tR\x06mobile\"\xb8\x01\n" +
 	"\x0eUpdateUserInfo\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\bnickname\x18\x02 \x01(\tR\bnickname\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x16\n" +
 	"\x06mobile\x18\x04 \x01(\tR\x06mobile\x12\x1a\n" +
 	"\bbirthday\x18\x05 \x01(\x04R\bbirthday\x12\x16\n" +
 	"\x06gender\x18\x06 \x01(\tR\x06gender\x12\x12\n" +
-	"\x04role\x18\a \x01(\rR\x04role\"]\n" +
+	"\x04role\x18\a \x01(\tR\x04role\"]\n" +
 	"\x11CheckPasswordInfo\x12\x1a\n" +
 	"\bpassword\x18\x01 \x01(\tR\bpassword\x12,\n" +
 	"\x11encryptedPassword\x18\x02 \x01(\tR\x11encryptedPassword\"1\n" +
@@ -604,7 +604,7 @@ const file_user_proto_rawDesc = "" +
 	"CreateUser\x12\x0f.CreateUserInfo\x1a\x11.UserInfoResponse\x125\n" +
 	"\n" +
 	"UpdateUser\x12\x0f.UpdateUserInfo\x1a\x16.google.protobuf.Empty\x12;\n" +
-	"\rCheckPassword\x12\x12.CheckPasswordInfo\x1a\x16.CheckPasswordResponseB\bZ\x06.;userb\x06proto3"
+	"\rCheckPassword\x12\x12.CheckPasswordInfo\x1a\x16.CheckPasswordResponseB\x16Z\x14shop/user/proto;userb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once

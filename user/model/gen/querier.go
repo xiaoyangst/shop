@@ -6,14 +6,22 @@ package model
 
 import (
 	"context"
+	"database/sql"
 )
 
 type Querier interface {
-	CreateUser(ctx context.Context, arg CreateUserParams) error
+	CountUsers(ctx context.Context) (int64, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByMobile(ctx context.Context, mobile string) (User, error)
-	ListUsers(ctx context.Context) ([]User, error)
+	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	SoftDeleteUser(ctx context.Context, id int64) error
+	// -- name: ListUsers :many
+	// SELECT *
+	// FROM Users
+	// WHERE IsDeleted = FALSE
+	// ORDER BY CreateAt DESC;
+	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 

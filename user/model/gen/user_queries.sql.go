@@ -10,7 +10,18 @@ import (
 	"database/sql"
 )
 
-const createUser = `-- name: CreateUser :exec
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM Users WHERE IsDeleted = FALSE
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createUser = `-- name: CreateUser :execresult
 INSERT INTO Users (
     Mobile, Password, NikeName, Birthday, Gender, Role
 ) VALUES (
@@ -28,12 +39,12 @@ type CreateUserParams struct {
 	Password string
 	NikeName string
 	Birthday sql.NullTime
-	Gender   UsersGender
-	Role     string
+	Gender   NullUsersGender
+	Role     sql.NullString
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser,
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createUser,
 		arg.Mobile,
 		arg.Password,
 		arg.NikeName,
@@ -41,7 +52,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.Gender,
 		arg.Role,
 	)
-	return err
 }
 
 const getUserByID = `-- name: GetUserByID :one
@@ -95,27 +105,39 @@ func (q *Queries) GetUserByMobile(ctx context.Context, mobile string) (User, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, createat, updateat, deleteat, isdeleted, mobile, password, nikename, birthday, gender, role
+SELECT id, mobile, password, NikeName, birthday, gender, role
 FROM Users
 WHERE IsDeleted = FALSE
 ORDER BY CreateAt DESC
+    LIMIT ? OFFSET ?
 `
 
-func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, listUsers)
+type ListUsersParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type ListUsersRow struct {
+	ID       int64
+	Mobile   string
+	Password string
+	Nikename string
+	Birthday sql.NullTime
+	Gender   NullUsersGender
+	Role     sql.NullString
+}
+
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListUsersRow
 	for rows.Next() {
-		var i User
+		var i ListUsersRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Createat,
-			&i.Updateat,
-			&i.Deleteat,
-			&i.Isdeleted,
 			&i.Mobile,
 			&i.Password,
 			&i.Nikename,
@@ -145,6 +167,49 @@ WHERE ID = ?
 
 func (q *Queries) SoftDeleteUser(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, softDeleteUser, id)
+	return err
+}
+
+const updateUser = `-- name: UpdateUser :exec
+
+UPDATE Users
+SET
+    Mobile    = ?,
+    Password  = ?,
+    NikeName  = ?,
+    Birthday  = ?,
+    Gender    = ?,
+    Role      = ?,
+    UpdateAt  = CURRENT_TIMESTAMP
+WHERE
+    ID = ?
+`
+
+type UpdateUserParams struct {
+	Mobile   string
+	Password string
+	Nikename string
+	Birthday sql.NullTime
+	Gender   NullUsersGender
+	Role     sql.NullString
+	ID       int64
+}
+
+// -- name: ListUsers :many
+// SELECT *
+// FROM Users
+// WHERE IsDeleted = FALSE
+// ORDER BY CreateAt DESC;
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
+	_, err := q.db.ExecContext(ctx, updateUser,
+		arg.Mobile,
+		arg.Password,
+		arg.Nikename,
+		arg.Birthday,
+		arg.Gender,
+		arg.Role,
+		arg.ID,
+	)
 	return err
 }
 
