@@ -1,0 +1,14 @@
+CREATE TABLE Users
+(
+    ID        BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '编号',
+    CreateAt  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UpdateAt  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    DeleteAt  DATETIME              DEFAULT NULL COMMENT '删除时间',
+    IsDeleted BOOLEAN      NOT NULL DEFAULT FALSE COMMENT '是否删除',
+    Mobile    VARCHAR(20)  NOT NULL UNIQUE COMMENT '手机号',
+    Password  VARCHAR(255) NOT NULL COMMENT '密码',
+    NikeName  VARCHAR(50)  NOT NULL COMMENT '昵称',
+    Birthday  DATE COMMENT '生日',
+    Gender    ENUM('Male', 'Female', 'Other') DEFAULT 'Other' COMMENT '性别',
+    Role      VARCHAR(50)  DEFAULT 'user' COMMENT '角色'
+) COMMENT='用户表';
