@@ -1,7 +1,15 @@
 module shop
 
-go 1.23
+go 1.23.0
 
-require github.com/go-sql-driver/mysql v1.9.2
+toolchain go1.23.4
 
-require filippo.io/edwards25519 v1.1.0 // indirect
+require (
+	github.com/anaskhan96/go-password-encoder v0.0.0-20201010210601-c765b799fd72
+	github.com/go-sql-driver/mysql v1.9.2
+)
+
+require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+)
