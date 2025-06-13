@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"shop/user/global"
-	model "shop/user/model/gen"
-	proto "shop/user/proto"
+	"shop_srvs/user_srv/global"
+	model "shop_srvs/user_srv/model/gen"
+	proto "shop_srvs/user_srv/proto"
 	"time"
 )
 

@@ -9,8 +9,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"shop/user/handler"
-	proto "shop/user/proto"
+	"shop_srvs/user_srv/handler"
+	proto "shop_srvs/user_srv/proto"
 	"syscall"
 )
 

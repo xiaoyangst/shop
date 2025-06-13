@@ -1,4 +1,4 @@
-module shop
+module shop_srvs
 
 go 1.23.0
 
