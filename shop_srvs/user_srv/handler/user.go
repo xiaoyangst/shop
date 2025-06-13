@@ -121,7 +121,7 @@ func (s *UserServer) CreateUser(ctx context.Context, in *proto.CreateUserInfo) (
 		NikeName: in.Nickname,
 		Birthday: sql.NullTime{
 			Time:  time.Now(),
-			Valid: false,
+			Valid: true,
 		},
 		Gender: model.NullUsersGender{
 			UsersGender: model.UsersGenderOther,
@@ -167,7 +167,7 @@ func (s *UserServer) UpdateUser(ctx context.Context, in *proto.UpdateUserInfo) (
 		Nikename: in.Nickname,
 		Birthday: sql.NullTime{
 			Time:  time.Unix(int64(in.Birthday), 0),
-			Valid: false,
+			Valid: true,
 		},
 		Gender: model.NullUsersGender{
 			UsersGender: model.UsersGender(in.Gender),
