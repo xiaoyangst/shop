@@ -3,3 +3,6 @@ port: 8021
 user_srv:
   host: '127.0.0.1'
   port: 9999
+jwt:
+  key: '+-qR.X)x)7Ly]f?N%.s1rw3}B31P2z'
+  expire: 7200

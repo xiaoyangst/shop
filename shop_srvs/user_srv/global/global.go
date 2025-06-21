@@ -15,7 +15,7 @@ var (
 )
 
 func connectMysql() {
-	dsn := "root:root@tcp(192.168.0.100:3306)/shop?parseTime=true"
+	dsn := "root:root@tcp(192.168.0.102:3306)/shop?parseTime=true"
 
 	var err error
 	DbConn, err = sql.Open("mysql", dsn)
