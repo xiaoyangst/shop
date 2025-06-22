@@ -7,6 +7,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -76,146 +77,187 @@ func HandleGrpcErrorToHttp(err error, c *gin.Context) {
 	}
 }
 
-func GetUserList(ctx *gin.Context) {
-	zap.S().Debugf("获取用户列表页")
-
-	// 连接用户服务
-	userConn, err := grpc.Dial(fmt.Sprintf("%s:%d", global.ServerConfig.UserSrvInfo.Host, global.ServerConfig.UserSrvInfo.Port), grpc.WithInsecure())
+// 创建 gRPC 用户服务客户端
+func getUserSrvClient() (pb.UserServiceClient, *grpc.ClientConn, error) {
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", global.ServerConfig.UserSrvInfo.Host, global.ServerConfig.UserSrvInfo.Port), grpc.WithInsecure())
 	if err != nil {
-		zap.S().Errorw("[GetUserList] 连接 【用户服务失败】", "msg", err.Error())
+		zap.S().Errorw("[gRPC连接失败]", "msg", err.Error())
+		return nil, nil, err
 	}
+	return pb.NewUserServiceClient(conn), conn, nil
+}
 
-	defer userConn.Close()
+// 创建 JWT Token
+func createToken(user *pb.UserInfoResponse) (string, int64, error) {
+	j := middlewares.NewJWT()
+	expiresAt := time.Now().Unix() + 60*60*24*30
+	claims := models.CustomClaims{
+		ID:          uint(user.Id),
+		NickName:    user.Nickname,
+		AuthorityId: user.Role,
+		StandardClaims: jwt.StandardClaims{
+			NotBefore: time.Now().Unix(),
+			ExpiresAt: expiresAt,
+			Issuer:    "xy",
+		},
+	}
+	token, err := j.CreateToken(claims)
+	return token, expiresAt * 1000, err
+}
 
-	// 创建 grpc 客户端
-	userSrvClient := pb.NewUserServiceClient(userConn)
-
-	// 由用户自定义 pn 和 psize
-	// web --> gin --> grpc --> 在具体的服务中处理
-	pn := ctx.DefaultQuery("pn", "0")
-	pnInt, _ := strconv.Atoi(pn)
-	pSize := ctx.DefaultQuery("psize", "1")
-	pSizeInt, _ := strconv.Atoi(pSize)
-	zap.S().Infof("获取用户列表页: 页码: %s, 页大小: %s", pn, pSize)
-
-	// 调用 grpc 服务，获取用户列表
-	rsp, err := userSrvClient.GetUserList(context.Background(), &pb.PageInfo{
-		PageIndex: uint32(pnInt),
-		PageSize:  uint32(pSizeInt),
-	})
-
+func GetUserList(c *gin.Context) {
+	zap.S().Debug("获取用户列表页")
+	userSrvClient, conn, err := getUserSrvClient()
 	if err != nil {
-		zap.S().Errorw("[GetUserList] 调用 【用户服务失败】", "msg", err.Error())
-		HandleGrpcErrorToHttp(err, ctx)
+		HandleGrpcErrorToHttp(err, c)
+		return
+	}
+	defer conn.Close()
+
+	pn, _ := strconv.Atoi(c.DefaultQuery("pn", "0"))
+	psize, _ := strconv.Atoi(c.DefaultQuery("psize", "1"))
+
+	rsp, err := userSrvClient.GetUserList(context.Background(), &pb.PageInfo{
+		PageIndex: uint32(pn),
+		PageSize:  uint32(psize),
+	})
+	if err != nil {
+		HandleGrpcErrorToHttp(err, c)
 		return
 	}
 
-	// 把从 grpc 服务中获取的数据，转换为 web 端需要的数据
-	result := make([]interface{}, 0)
-	for _, user := range rsp.Data {
-		user := response.UserResp{
-			Id:       user.Id,
-			NickName: user.Nickname,
-			Birthday: response.JsonTime(time.Unix(int64(user.Birthday), 0)),
-			Gender:   user.Gender,
-			Mobile:   user.Mobile,
-		}
-		result = append(result, user)
+	users := make([]interface{}, 0)
+	for _, u := range rsp.Data {
+		users = append(users, response.UserResp{
+			Id:       u.Id,
+			NickName: u.Nickname,
+			Birthday: response.JsonTime(time.Unix(int64(u.Birthday), 0)),
+			Gender:   u.Gender,
+			Mobile:   u.Mobile,
+		})
 	}
-
-	ctx.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, users)
 }
 
 func PassWordLogin(c *gin.Context) {
-	passwordLoginForm := forms.PasswordLoginForm{}
-	// 绑定表单数据到结构体
-	if err := c.ShouldBindJSON(&passwordLoginForm); err != nil {
+	var form forms.PasswordLoginForm
+	if err := c.ShouldBindJSON(&form); err != nil {
 		HandleValidatorError(c, err)
 		return
 	}
 
-	// 验证码验证
-	if !store.Verify(passwordLoginForm.CaptchaId, passwordLoginForm.Captcha, true) {
-		c.JSON(http.StatusBadRequest, map[string]string{
-			"captcha": "验证码错误",
-		})
+	// 图形验证码验证
+	if !store.Verify(form.CaptchaId, form.Captcha, true) {
+		c.JSON(http.StatusBadRequest, gin.H{"captcha": "验证码错误"})
 		return
 	}
 
-	// 连接用户服务
-	userConn, err := grpc.Dial(fmt.Sprintf("%s:%d", global.ServerConfig.UserSrvInfo.Host, global.ServerConfig.UserSrvInfo.Port), grpc.WithInsecure())
+	userSrvClient, conn, err := getUserSrvClient()
 	if err != nil {
-		zap.S().Errorw("[PassWordLogin] 连接 【用户服务失败】", "msg", err.Error())
+		HandleGrpcErrorToHttp(err, c)
+		return
+	}
+	defer conn.Close()
+
+	// 获取用户信息
+	user, err := userSrvClient.GetUserByMobile(context.Background(), &pb.MobileRequest{Mobile: form.Mobile})
+	if err != nil {
+		HandleGrpcErrorToHttp(err, c)
+		return
 	}
 
-	defer userConn.Close()
+	// 验证密码
+	pwdCheck, err := userSrvClient.CheckPassword(context.Background(), &pb.CheckPasswordInfo{
+		Password:          form.Password,
+		EncryptedPassword: user.Password,
+	})
+	if err != nil || !pwdCheck.Success {
+		c.JSON(http.StatusBadRequest, gin.H{"password": "密码错误"})
+		return
+	}
 
-	// 创建 grpc 客户端
-	userSrvClient := pb.NewUserServiceClient(userConn)
+	token, exp, err := createToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "生成 token 失败"})
+		return
+	}
 
-	// 获取手机号，判断用户是否存在
-	rsp, err := userSrvClient.GetUserByMobile(context.Background(), &pb.MobileRequest{
-		Mobile: passwordLoginForm.Mobile,
+	c.JSON(http.StatusOK, gin.H{
+		"token":      token,
+		"id":         user.Id,
+		"nickname":   user.Nickname,
+		"expires_at": exp,
+	})
+}
+
+func Register(c *gin.Context) {
+	var form forms.RegisterForm
+	if err := c.ShouldBindJSON(&form); err != nil {
+		HandleValidatorError(c, err)
+		return
+	}
+	// 手机号验证码验证
+	if !validateSmsCode(form.Mobile, form.Code) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "验证码错误"})
+		return
+	}
+
+	userSrvClient, conn, err := getUserSrvClient()
+	if err != nil {
+		HandleGrpcErrorToHttp(err, c)
+		return
+	}
+	defer conn.Close()
+
+	_, err = userSrvClient.CreateUser(context.Background(), &pb.CreateUserInfo{
+		Nickname: form.Mobile,
+		Password: form.Password,
+		Mobile:   form.Mobile,
+	})
+	if err != nil {
+		HandleGrpcErrorToHttp(err, c)
+		return
+	}
+
+	user, err := userSrvClient.GetUserByMobile(context.Background(), &pb.MobileRequest{Mobile: form.Mobile})
+	if err != nil {
+		HandleGrpcErrorToHttp(err, c)
+		return
+	}
+
+	token, exp, err := createToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "生成 token 失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":      token,
+		"id":         user.Id,
+		"nickname":   user.Nickname,
+		"expires_at": exp,
 	})
 
-	if err != nil { // 用户不存在
-		if e, ok := status.FromError(err); ok {
-			switch e.Code() {
-			case codes.NotFound:
-				c.JSON(http.StatusBadRequest, map[string]string{
-					"mobile": "用户不存在",
-				})
-			default:
-				c.JSON(http.StatusInternalServerError, map[string]string{
-					"mobile": "登录失败",
-				})
-			}
-			return
-		}
-	} else {
-		// 验证密码
-		pwdRsp, pwdErr := userSrvClient.CheckPassword(context.Background(), &pb.CheckPasswordInfo{
-			Password:          passwordLoginForm.Password,
-			EncryptedPassword: rsp.Password,
-		})
-		if pwdErr != nil { // 密码验证失败
-			c.JSON(http.StatusInternalServerError, map[string]string{
-				"password": "登录失败",
-			})
-		} else {
-			if !pwdRsp.Success {
-				c.JSON(http.StatusBadRequest, map[string]string{
-					"password": "密码错误",
-				})
-			} else {
-				// 登录成功, 生成 token
-				j := middlewares.NewJWT()
-				claims := models.CustomClaims{
-					ID:          uint(rsp.Id),
-					NickName:    rsp.Nickname,
-					AuthorityId: rsp.Role,
-					StandardClaims: jwt.StandardClaims{
-						NotBefore: time.Now().Unix(),
-						ExpiresAt: time.Now().Unix() + 60*60*24*30, // token 有效期为 30 天
-						Issuer:    "xy",
-					},
-				}
-				token, err := j.CreateToken(claims)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{
-						"msg": "生成 token 失败",
-					})
-					return
-				}
+	clearSmsCode(form.Mobile)
+}
 
-				c.JSON(http.StatusOK, gin.H{
-					"token":      token,
-					"id":         rsp.Id,
-					"nickname":   rsp.Nickname,
-					"expires_at": (time.Now().Unix() + 60*60*24*30) * 1000,
-				})
-			}
-		}
+func validateSmsCode(mobile, code string) bool {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: fmt.Sprintf("%s:%d", global.ServerConfig.RedisInfo.Host, global.ServerConfig.RedisInfo.Port),
+	})
+	defer rdb.Close()
+
+	val, err := rdb.Get(context.Background(), mobile+"_sms_code").Result()
+	return err == nil && val == code
+}
+
+func clearSmsCode(mobile string) {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: fmt.Sprintf("%s:%d", global.ServerConfig.RedisInfo.Host, global.ServerConfig.RedisInfo.Port),
+	})
+	defer rdb.Close()
+
+	if err := rdb.Del(context.Background(), mobile+"_sms_code").Err(); err != nil {
+		zap.S().Errorw("[Register] 删除验证码失败", "msg", err.Error())
 	}
-
 }

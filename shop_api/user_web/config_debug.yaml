@@ -6,3 +6,7 @@ user_srv:
 jwt:
   key: '+-qR.X)x)7Ly]f?N%.s1rw3}B31P2z'
   expire: 7200
+redis:
+  host: '192.168.0.101'
+  port: 6379
+  expire: 300
